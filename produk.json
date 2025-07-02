@@ -1,0 +1,30 @@
+[
+  {
+    "nama": "Whiskas Dry Food Adult 1+",
+    "jenis": "dryfood",
+    "untuk": "kucing",
+    "usia": "1 tahun",
+    "deskripsi": "Makanan kucing dewasa dengan protein tinggi dan omega."
+  },
+  {
+    "nama": "Me-O Kitten",
+    "jenis": "dryfood",
+    "untuk": "kucing",
+    "usia": "0-1 tahun",
+    "deskripsi": "Dryfood khusus kitten dengan nutrisi lengkap."
+  },
+  {
+    "nama": "Royal Canin Mini Puppy",
+    "jenis": "dryfood",
+    "untuk": "anjing",
+    "usia": "0-1 tahun",
+    "deskripsi": "Cocok untuk anjing kecil usia muda."
+  },
+  {
+    "nama": "Pedigree Adult",
+    "jenis": "dryfood",
+    "untuk": "anjing",
+    "usia": "1 tahun",
+    "deskripsi": "Makanan anjing dewasa rasa daging asli."
+  }
+]
