@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Customer Service Petshop AI</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; }
+    input, button { padding: 10px; font-size: 16px; margin-top: 10px; width: 100%; }
+    .chat-box { margin-top: 20px; background: #f4f4f4; padding: 15px; border-radius: 8px; }
+    .jawaban { margin-top: 10px; font-weight: bold; color: #1a73e8; }
+    .wa { margin-top: 10px; display: inline-block; background: #25d366; color: white; padding: 10px; border-radius: 6px; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <h1>Customer Service AI - Petshop</h1>
+  <p>Tanyakan apa saja seputar produk hewan peliharaan kamu!</p>
+  <input type="text" id="pertanyaan" placeholder="Contoh: dryfood terbaik untuk kucing 1 tahun apa?" />
+  <button onclick="jawab()">Tanyakan</button>
+
+  <div class="chat-box">
+    <div id="jawaban" class="jawaban">Jawaban akan muncul di sini...</div>
+    <a id="waLink" class="wa" href="#" target="_blank" style="display:none">Chat via WhatsApp</a>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
