@@ -1,275 +1,178 @@
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>KRL Tracker Jogja – Palur (Arah Dinamis)</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <title>KRL Yogyakarta – Palur Tracker</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f4f4f4;
-      color: #333;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-    }
-
-    .navbar {
-      background-color: #c62828;
-      color: white;
-      padding: 12px 16px;
-      font-size: 18px;
-      font-weight: bold;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .info-panel {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-around;
-      background-color: white;
-      padding: 10px;
-      font-size: 15px;
-      border-bottom: 1px solid #ddd;
-    }
-
-    .info-panel div {
-      margin: 5px 10px;
-    }
-
-    #map {
-      flex-grow: 1;
-      width: 100%;
-    }
-
-    .status {
-      text-align: center;
-      font-size: 0.9em;
-      color: #666;
-      padding: 6px;
-    }
-
-    .locate-btn {
+    body { margin: 0; font-family: sans-serif; }
+    #map { height: 100vh; }
+    .info-box {
       position: absolute;
-      bottom: 20px;
-      left: 15px;
-      z-index: 1000;
-      background-color: white;
-      border: 2px solid #c62828;
-      color: #c62828;
-      padding: 8px 12px;
-      border-radius: 6px;
-      cursor: pointer;
+      top: 0;
+      width: 100%;
+      background: #b71c1c;
+      color: white;
+      padding: 10px;
       font-weight: bold;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      text-align: center;
     }
-
-    .krl-label-box {
-      background-color: rgba(255, 255, 255, 0.9);
-      padding: 4px 8px;
+    .data-bar {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      background: white;
+      color: black;
+      padding: 8px;
+      font-size: 15px;
+      flex-wrap: wrap;
+    }
+    .lokasi-btn {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: white;
+      padding: 6px 12px;
       border-radius: 8px;
       border: 2px solid red;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
       font-weight: bold;
-      color: red;
-      font-size: 14px;
-      text-align: center;
-      line-height: 1.2;
+    }
+    .train-label {
+      background: white;
+      padding: 6px 12px;
+      border: 2px solid red;
+      border-radius: 8px;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
-  <div class="navbar">
-    🚆 KRL Yogyakarta – Palur
-    <span id="statusKereta">Status: -</span>
+  <div class="info-box">🚆 KRL Yogyakarta – Palur &nbsp;&nbsp; <span id="status">Status: -</span></div>
+  <div class="data-bar">
+    <span>🌡️ Suhu: <span id="suhu">N/A</span> °C</span>
+    <span>🚉 Kecepatan: <span id="speed">0</span> km/jam</span>
+    <span>📍 Stasiun berikutnya: <span id="nextStation">-</span></span>
+    <span>✏️ Jarak: <span id="jarak">-</span> km</span>
   </div>
-
-  <div class="info-panel">
-    <div>🌡️ Suhu: <span id="temp">-</span> °C</div>
-    <div>🚆 Kecepatan: <span id="speed">0</span> km/jam</div>
-    <div>📍 Stasiun berikutnya: <span id="nextStation">-</span></div>
-    <div>📏 Jarak: <span id="distanceToNext">-</span> km</div>
-  </div>
-
-  <button class="locate-btn" onclick="zoomToUser()">📍 Lokasi Saya</button>
   <div id="map"></div>
-  <div class="status" id="status">Menunggu GPS...</div>
+  <button class="lokasi-btn" onclick="zoomLokasi()">📍 Lokasi Saya</button>
 
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script>
-    const speedEl = document.getElementById("speed");
-    const statusEl = document.getElementById("status");
-    const nextStationEl = document.getElementById("nextStation");
-    const distanceEl = document.getElementById("distanceToNext");
-    const tempEl = document.getElementById("temp");
-    const statusKeretaEl = document.getElementById("statusKereta");
+<script>
+const stations = [
+  { "name": "Yogyakarta", "lat": -7.7896, "lon": 110.3671 },
+  { "name": "Lempuyangan", "lat": -7.7828, "lon": 110.3794 },
+  { "name": "Maguwo", "lat": -7.7833, "lon": 110.4083 },
+  { "name": "Brambanan", "lat": -7.7551, "lon": 110.4549 },
+  { "name": "Srowot", "lat": -7.7393, "lon": 110.4819 },
+  { "name": "Klaten", "lat": -7.7058, "lon": 110.6063 },
+  { "name": "Ceper", "lat": -7.7044, "lon": 110.6785 },
+  { "name": "Delanggu", "lat": -7.6406, "lon": 110.6953 },
+  { "name": "Gawok", "lat": -7.59736, "lon": 110.73810 },
+  { "name": "Purwosari", "lat": -7.5656, "lon": 110.8017 },
+  { "name": "Solo Balapan", "lat": -7.5562, "lon": 110.8251 },
+  { "name": "Solo Jebres", "lat": -7.5525, "lon": 110.8494 },
+  { "name": "Palur", "lat": -7.5412, "lon": 110.8784 }
+];
 
-    const stations = [{"name": "Yogyakarta", "lat": -7.7894, "lon": 110.363}, {"name": "Lempuyangan", "lat": -7.7829, "lon": 110.3794}, {"name": "Maguwo", "lat": -7.7833, "lon": 110.4253}, {"name": "Brambanan", "lat": -7.7545, "lon": 110.4912}, {"name": "Srowot", "lat": -7.7265, "lon": 110.5401}, {"name": "Klaten", "lat": -7.7058, "lon": 110.606}, {"name": "Ceper", "lat": -7.6783, "lon": 110.6453}, {"name": "Delanggu", "lat": -7.6586, "lon": 110.6803}, {"name": "Gawok", "lat": -7.59736, "lon": 110.7381}, {"name": "Purwosari", "lat": -7.5671, "lon": 110.7924}, {"name": "Solo Balapan", "lat": -7.5611, "lon": 110.8226}, {"name": "Solo Jebres", "lat": -7.5586, "lon": 110.8496}, {"name": "Palur", "lat": -7.5524, "lon": 110.8843}];
+function distance(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
 
-    let map, marker;
-    let currentLat = null;
-    let currentLon = null;
-    let prevLat = null;
-    let prevLon = null;
+let directionForward = true;
+let lastLatLng = null;
+let currentLatLng = null;
 
-    const trainLabelIcon = L.divIcon({
-      html: '<div class="krl-label-box">🚆 KRL Commuter<br>Yogyakarta–Palur</div>',
-      className: '',
-      iconSize: [160, 50],
-      iconAnchor: [80, 25]
-    });
+function detectDirection(currentLatLngNew) {
+  if (!lastLatLng) {
+    lastLatLng = currentLatLngNew;
+    return;
+  }
+  const start = stations[0];
+  const end = stations[stations.length - 1];
+  const dToStartNow = distance(currentLatLngNew.lat, currentLatLngNew.lng, start.lat, start.lon);
+  const dToEndNow = distance(currentLatLngNew.lat, currentLatLngNew.lng, end.lat, end.lon);
+  const dToStartLast = distance(lastLatLng.lat, lastLatLng.lng, start.lat, start.lon);
+  const dToEndLast = distance(lastLatLng.lat, lastLatLng.lng, end.lat, end.lon);
 
-    function getDistance(lat1, lon1, lat2, lon2) {
-      const R = 6371;
-      const dLat = (lat2 - lat1) * Math.PI / 180;
-      const dLon = (lon2 - lon1) * Math.PI / 180;
-      const a =
-        Math.sin(dLat / 2) ** 2 +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-        Math.sin(dLon / 2) ** 2;
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
+  if ((dToEndNow < dToEndLast) && (dToStartNow > dToStartLast)) {
+    directionForward = true;
+  } else if ((dToStartNow < dToStartLast) && (dToEndNow > dToEndLast)) {
+    directionForward = false;
+  }
+  lastLatLng = currentLatLngNew;
+}
+
+let map = L.map('map').setView([-7.65, 110.75], 11);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+let marker = L.marker([-7.65, 110.75]).addTo(map);
+let label = L.popup({ closeButton: false })
+  .setLatLng([-7.65, 110.75])
+  .setContent('<div class="train-label">🚆 KRL Commuter<br>Yogyakarta–Palur</div>')
+  .openOn(map);
+
+function updatePosition(pos) {
+  const lat = pos.coords.latitude;
+  const lon = pos.coords.longitude;
+  const speed = (pos.coords.speed || 0) * 3.6;
+  document.getElementById("speed").textContent = speed.toFixed(1);
+  marker.setLatLng([lat, lon]);
+  label.setLatLng([lat, lon]);
+  currentLatLng = [lat, lon];
+
+  detectDirection({ lat, lng: lon });
+
+  const stationList = directionForward ? stations : [...stations].reverse();
+  let minDist = Infinity;
+  let nearest = null;
+
+  for (let i = 0; i < stationList.length; i++) {
+    const s = stationList[i];
+    const d = distance(lat, lon, s.lat, s.lon);
+    if (d < minDist) {
+      minDist = d;
+      nearest = s;
     }
-
-    function getBearing(lat1, lon1, lat2, lon2) {
-      const dLon = (lon2 - lon1) * Math.PI / 180;
-      const y = Math.sin(dLon) * Math.cos(lat2 * Math.PI / 180);
-      const x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
-                Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos(dLon);
-      const brng = Math.atan2(y, x) * 180 / Math.PI;
-      return (brng + 360) % 360;
+    if (d < 0.3) {
+      document.getElementById("status").textContent = "Status: Berhenti di stasiun " + s.name;
+      document.getElementById("nextStation").textContent = s.name;
+      document.getElementById("jarak").textContent = "0";
+      return;
     }
+  }
 
-    function findNextStationDirectional(lat, lon, bearing) {
-      let next = null;
-      let minDist = Infinity;
-      const isEastward = bearing > 90 && bearing < 270;
+  const idx = stationList.indexOf(nearest);
+  const nextStation = stationList[idx + 1];
+  document.getElementById("status").textContent = "Status: Berjalan";
+  document.getElementById("nextStation").textContent = nextStation ? nextStation.name : "-";
+  if (nextStation) {
+    const jarak = distance(lat, lon, nextStation.lat, nextStation.lon);
+    document.getElementById("jarak").textContent = jarak.toFixed(2);
+  } else {
+    document.getElementById("jarak").textContent = "-";
+  }
+}
 
-      const orderedStations = isEastward ? stations : [...stations].reverse();
+function zoomLokasi() {
+  if (currentLatLng) {
+    map.flyTo(currentLatLng, 16);
+  }
+}
 
-      for (const s of orderedStations) {
-        const dist = getDistance(lat, lon, s.lat, s.lon);
-        const dLat = s.lat - lat;
-        if (dist < minDist && dist > 0.2 && ((isEastward && dLat < 0.5) || (!isEastward && dLat > -0.5))) {
-          minDist = dist;
-          next = s;
-        }
-      }
-      return { station: next, distance: minDist.toFixed(2) };
-    }
-
-    function addStationMarkers() {
-      for (const s of stations) {
-        L.circleMarker([s.lat, s.lon], {
-          radius: 5,
-          color: 'blue'
-        }).addTo(map).bindPopup(s.name);
-      }
-    }
-
-    function initMap(lat, lon) {
-      map = L.map('map').setView([lat, lon], 13);
-
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-      }).addTo(map);
-
-      marker = L.marker([lat, lon], { icon: trainLabelIcon }).addTo(map);
-      addStationMarkers();
-
-      let lastTap = 0;
-      map.getContainer().addEventListener("touchend", function(e) {
-        const currentTime = new Date().getTime();
-        if (currentTime - lastTap < 500) {
-          zoomToUser();
-        }
-        lastTap = currentTime;
-      });
-    }
-
-    function zoomToUser() {
-      if (map && currentLat && currentLon) {
-        map.setView([currentLat, currentLon], 15);
-      }
-    }
-
-    if ("geolocation" in navigator) {
-      navigator.geolocation.watchPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lon = pos.coords.longitude;
-          const speedMps = pos.coords.speed;
-
-          prevLat = currentLat;
-          prevLon = currentLon;
-
-          currentLat = lat;
-          currentLon = lon;
-
-          if (!map) initMap(lat, lon);
-          if (marker) {
-            marker.setLatLng([lat, lon]);
-            map.panTo([lat, lon]);
-          }
-
-          if (speedMps !== null) {
-            const kmph = (speedMps * 3.6).toFixed(1);
-            speedEl.textContent = kmph;
-            statusEl.textContent = "GPS aktif";
-            
-    if (speedMps > 1) {
-      statusKeretaEl.textContent = "Status: Berjalan";
-    } else {
-      let stopStation = null;
-      for (const s of stations) {
-        const d = getDistance(lat, lon, s.lat, s.lon);
-        if (d < 0.3) {
-          stopStation = s.name;
-          break;
-        }
-      }
-      if (stopStation) {
-        statusKeretaEl.textContent = "Status: Berhenti di " + stopStation;
-      } else {
-        statusKeretaEl.textContent = "Status: Berhenti";
-      }
-    }
-    
-          }
-
-          if (prevLat !== null && prevLon !== null) {
-            const bearing = getBearing(prevLat, prevLon, lat, lon);
-            const { station, distance } = findNextStationDirectional(lat, lon, bearing);
-            if (station) {
-              nextStationEl.textContent = station.name;
-              distanceEl.textContent = distance;
-            }
-          }
-        },
-        (err) => {
-          statusEl.textContent = "Lokasi tidak tersedia.";
-          console.error(err);
-        },
-        {
-          enableHighAccuracy: true,
-          maximumAge: 1000,
-          timeout: 5000
-        }
-      );
-    } else {
-      statusEl.textContent = "Geolocation tidak didukung.";
-    }
-
-    function getTemperature() {
-      tempEl.textContent = "N/A";
-    }
-
-    getTemperature();
-  </script>
+if (navigator.geolocation) {
+  navigator.geolocation.watchPosition(updatePosition);
+}
+</script>
 </body>
 </html>
