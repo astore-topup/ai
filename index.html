@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -55,8 +56,8 @@
 
     .locate-btn {
       position: absolute;
-      top: 90px;
-      right: 15px;
+      bottom: 20px;
+      left: 15px;
       z-index: 1000;
       background-color: white;
       border: 2px solid #c62828;
@@ -176,6 +177,17 @@
 
       marker = L.marker([lat, lon], { icon: trainLabelIcon }).addTo(map);
       addStationMarkers();
+
+      // Gesture double tap zoom to user
+      let lastTap = 0;
+      map.getContainer().addEventListener("touchend", function(e) {
+        const currentTime = new Date().getTime();
+        const tapLength = currentTime - lastTap;
+        if (tapLength < 500 && tapLength > 0) {
+          zoomToUser();
+        }
+        lastTap = currentTime;
+      });
     }
 
     function zoomToUser() {
