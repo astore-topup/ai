@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>KRL Tracker Jogja – Palur</title>
+  <title>KRL Tracker Jogja – Palur (Arah Dinamis)</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
     body {
@@ -126,6 +126,8 @@
     let map, marker;
     let currentLat = null;
     let currentLon = null;
+    let prevLat = null;
+    let prevLon = null;
 
     const trainLabelIcon = L.divIcon({
       html: '<div class="krl-label-box">🚆 KRL Commuter<br>Yogyakarta–Palur</div>',
@@ -146,17 +148,31 @@
       return R * c;
     }
 
-    function findNextStation(lat, lon) {
-      let closest = null;
+    function getBearing(lat1, lon1, lat2, lon2) {
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const y = Math.sin(dLon) * Math.cos(lat2 * Math.PI / 180);
+      const x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
+                Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos(dLon);
+      const brng = Math.atan2(y, x) * 180 / Math.PI;
+      return (brng + 360) % 360;
+    }
+
+    function findNextStationDirectional(lat, lon, bearing) {
+      let next = null;
       let minDist = Infinity;
-      for (const station of stations) {
-        const dist = getDistance(lat, lon, station.lat, station.lon);
-        if (dist < minDist && dist > 0.3) {
+      const isEastward = bearing > 90 && bearing < 270;
+
+      const orderedStations = isEastward ? stations : [...stations].reverse();
+
+      for (const s of orderedStations) {
+        const dist = getDistance(lat, lon, s.lat, s.lon);
+        const dLat = s.lat - lat;
+        if (dist < minDist && dist > 0.2 && ((isEastward && dLat < 0.5) || (!isEastward && dLat > -0.5))) {
           minDist = dist;
-          closest = station;
+          next = s;
         }
       }
-      return { station: closest, distance: minDist.toFixed(2) };
+      return { station: next, distance: minDist.toFixed(2) };
     }
 
     function addStationMarkers() {
@@ -178,12 +194,10 @@
       marker = L.marker([lat, lon], { icon: trainLabelIcon }).addTo(map);
       addStationMarkers();
 
-      // Gesture double tap zoom to user
       let lastTap = 0;
       map.getContainer().addEventListener("touchend", function(e) {
         const currentTime = new Date().getTime();
-        const tapLength = currentTime - lastTap;
-        if (tapLength < 500 && tapLength > 0) {
+        if (currentTime - lastTap < 500) {
           zoomToUser();
         }
         lastTap = currentTime;
@@ -201,10 +215,13 @@
         (pos) => {
           const lat = pos.coords.latitude;
           const lon = pos.coords.longitude;
+          const speedMps = pos.coords.speed;
+
+          prevLat = currentLat;
+          prevLon = currentLon;
+
           currentLat = lat;
           currentLon = lon;
-
-          const speedMps = pos.coords.speed;
 
           if (!map) initMap(lat, lon);
           if (marker) {
@@ -216,14 +233,16 @@
             const kmph = (speedMps * 3.6).toFixed(1);
             speedEl.textContent = kmph;
             statusEl.textContent = "GPS aktif";
-
             statusKeretaEl.textContent = speedMps > 1 ? "Status: Berjalan" : "Status: Berhenti";
           }
 
-          const { station, distance } = findNextStation(lat, lon);
-          if (station) {
-            nextStationEl.textContent = station.name;
-            distanceEl.textContent = distance;
+          if (prevLat !== null && prevLon !== null) {
+            const bearing = getBearing(prevLat, prevLon, lat, lon);
+            const { station, distance } = findNextStationDirectional(lat, lon, bearing);
+            if (station) {
+              nextStationEl.textContent = station.name;
+              distanceEl.textContent = distance;
+            }
           }
         },
         (err) => {
@@ -241,7 +260,7 @@
     }
 
     function getTemperature() {
-      tempEl.textContent = "N/A"; // Placeholder
+      tempEl.textContent = "N/A";
     }
 
     getTemperature();
