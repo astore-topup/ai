@@ -2,8 +2,8 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Speedometer GPS + Peta</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pelacak KRL Jogja - Palur</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
     body {
@@ -22,14 +22,15 @@
       padding: 10px;
     }
 
-    .speed {
-      font-size: 4em;
-      font-weight: bold;
+    .info-panel {
+      display: flex;
+      justify-content: space-around;
+      padding: 10px;
+      font-size: 1.1em;
     }
 
-    .unit {
-      font-size: 1.2em;
-      margin-top: -10px;
+    .speed, .temp {
+      font-size: 1.5em;
     }
 
     #map {
@@ -42,15 +43,25 @@
       text-align: center;
       font-size: 1em;
       color: #aaa;
-      padding: 10px;
+      padding: 5px;
     }
   </style>
 </head>
 <body>
   <div class="header">
-    <div>Kecepatan Anda</div>
-    <div class="speed" id="speed">0</div>
-    <div class="unit">km/jam</div>
+    <h2>Pelacak KRL Jogja → Palur</h2>
+  </div>
+  <div class="info-panel">
+    <div>
+      🚆 Kecepatan: <span class="speed" id="speed">0</span> km/jam
+    </div>
+    <div>
+      🌡️ Suhu: <span class="temp" id="temp">-</span> °C
+    </div>
+  </div>
+  <div class="info-panel">
+    <div id="nextStation">Stasiun berikutnya: -</div>
+    <div id="distanceToNext">Jarak: - km</div>
   </div>
   <div id="map"></div>
   <div class="status" id="status">Menunggu GPS...</div>
@@ -59,57 +70,140 @@
   <script>
     const speedElement = document.getElementById("speed");
     const statusElement = document.getElementById("status");
+    const nextStationElement = document.getElementById("nextStation");
+    const distanceElement = document.getElementById("distanceToNext");
+    const tempElement = document.getElementById("temp");
+
+    // Data stasiun Jogja - Palur (nama, lat, lon)
+    const stations = [
+      { name: "Yogyakarta", lat: -7.7894, lon: 110.3630 },
+      { name: "Lempuyangan", lat: -7.7829, lon: 110.3794 },
+      { name: "Maguwo", lat: -7.7833, lon: 110.4253 },
+      { name: "Brambanan", lat: -7.7545, lon: 110.4912 },
+      { name: "Srowot", lat: -7.7265, lon: 110.5401 },
+      { name: "Klaten", lat: -7.7058, lon: 110.6060 },
+      { name: "Delanggu", lat: -7.6586, lon: 110.6803 },
+      { name: "Gawok", lat: -7.6063, lon: 110.7637 },
+      { name: "Purwosari", lat: -7.5671, lon: 110.7924 },
+      { name: "Solo Balapan", lat: -7.5611, lon: 110.8226 },
+      { name: "Palur", lat: -7.5524, lon: 110.8843 }
+    ];
 
     let map, marker;
 
-    function initMap(lat, lon) {
-      map = L.map('map').setView([lat, lon], 16);
+    // Ikon kereta
+    const trainIcon = L.icon({
+      iconUrl: "https://cdn-icons-png.flaticon.com/512/634/634267.png",
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+    });
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap',
-        maxZoom: 19,
-      }).addTo(map);
-
-      marker = L.marker([lat, lon]).addTo(map);
+    // Hitung jarak Haversine
+    function getDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371; // km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
     }
 
+    // Cari stasiun terdekat berikutnya
+    function findNextStation(lat, lon) {
+      let closest = null;
+      let minDist = Infinity;
+      for (const station of stations) {
+        const dist = getDistance(lat, lon, station.lat, station.lon);
+        if (dist < minDist && dist > 0.3) {
+          minDist = dist;
+          closest = station;
+        }
+      }
+      return { station: closest, distance: minDist.toFixed(2) };
+    }
+
+    // Tambahkan marker stasiun
+    function addStationMarkers() {
+      for (const s of stations) {
+        L.circleMarker([s.lat, s.lon], {
+          radius: 5,
+          color: 'yellow'
+        }).addTo(map).bindPopup(s.name);
+      }
+    }
+
+    // Inisialisasi peta
+    function initMap(lat, lon) {
+      map = L.map('map').setView([lat, lon], 13);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+
+      marker = L.marker([lat, lon], { icon: trainIcon }).addTo(map);
+      addStationMarkers();
+    }
+
+    // Dapatkan suhu (jika tersedia)
+    function getTemperature() {
+      if ("AmbientTemperatureSensor" in window) {
+        const sensor = new AmbientTemperatureSensor();
+        sensor.addEventListener('reading', () => {
+          tempElement.textContent = sensor.temperature.toFixed(1);
+        });
+        sensor.start();
+      } else {
+        tempElement.textContent = "N/A";
+      }
+    }
+
+    // Update GPS
     if ("geolocation" in navigator) {
       navigator.geolocation.watchPosition(
-        (position) => {
-          const lat = position.coords.latitude;
-          const lon = position.coords.longitude;
-          const speedMps = position.coords.speed;
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          const speedMps = pos.coords.speed;
 
-          if (!map) {
-            initMap(lat, lon);
-          }
+          if (!map) initMap(lat, lon);
 
           if (marker) {
             marker.setLatLng([lat, lon]);
             map.panTo([lat, lon]);
           }
 
+          // Update kecepatan
           if (speedMps !== null) {
-            const speedKmph = (speedMps * 3.6).toFixed(1);
-            speedElement.textContent = speedKmph;
+            const kmph = (speedMps * 3.6).toFixed(1);
+            speedElement.textContent = kmph;
             statusElement.textContent = "GPS aktif";
-          } else {
-            statusElement.textContent = "Sedang menghitung kecepatan...";
+          }
+
+          // Update stasiun berikutnya
+          const { station, distance } = findNextStation(lat, lon);
+          if (station) {
+            nextStationElement.textContent = "Stasiun berikutnya: " + station.name;
+            distanceElement.textContent = "Jarak: " + distance + " km";
           }
         },
-        (error) => {
-          statusElement.textContent = "Akses lokasi ditolak atau tidak tersedia.";
-          console.error(error);
+        (err) => {
+          statusElement.textContent = "Lokasi tidak tersedia.";
+          console.error(err);
         },
         {
           enableHighAccuracy: true,
           maximumAge: 1000,
-          timeout: 5000,
+          timeout: 5000
         }
       );
     } else {
-      statusElement.textContent = "Geolocation tidak didukung di perangkat ini.";
+      statusElement.textContent = "Geolocation tidak didukung.";
     }
+
+    getTemperature();
   </script>
 </body>
 </html>
