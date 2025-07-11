@@ -3,78 +3,111 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Pelacak KRL Jogja - Palur</title>
+  <title>KRL Tracker Jogja – Palur</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
     body {
-      background: #111;
-      color: #0f0;
-      font-family: 'Courier New', monospace;
       margin: 0;
-      padding: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      color: #333;
       display: flex;
       flex-direction: column;
       height: 100vh;
     }
 
-    .header {
-      text-align: center;
-      padding: 10px;
+    .navbar {
+      background-color: #c62828;
+      color: white;
+      padding: 12px 16px;
+      font-size: 18px;
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
     .info-panel {
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-around;
+      background-color: white;
       padding: 10px;
-      font-size: 1.1em;
+      font-size: 15px;
+      border-bottom: 1px solid #ddd;
     }
 
-    .speed, .temp {
-      font-size: 1.5em;
+    .info-panel div {
+      margin: 5px 10px;
     }
 
     #map {
       flex-grow: 1;
       width: 100%;
-      height: 60vh;
     }
 
     .status {
       text-align: center;
-      font-size: 1em;
-      color: #aaa;
-      padding: 5px;
+      font-size: 0.9em;
+      color: #666;
+      padding: 6px;
+    }
+
+    .locate-btn {
+      position: absolute;
+      top: 90px;
+      right: 15px;
+      z-index: 1000;
+      background-color: white;
+      border: 2px solid #c62828;
+      color: #c62828;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+
+    .krl-label-box {
+      background-color: rgba(255, 255, 255, 0.9);
+      padding: 4px 8px;
+      border-radius: 8px;
+      border: 2px solid red;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      font-weight: bold;
+      color: red;
+      font-size: 14px;
+      text-align: center;
+      line-height: 1.2;
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h2>Pelacak KRL Jogja → Palur</h2>
+  <div class="navbar">
+    🚆 KRL Yogyakarta – Palur
+    <span id="statusKereta">Status: -</span>
   </div>
+
   <div class="info-panel">
-    <div>
-      🚆 Kecepatan: <span class="speed" id="speed">0</span> km/jam
-    </div>
-    <div>
-      🌡️ Suhu: <span class="temp" id="temp">-</span> °C
-    </div>
+    <div>🌡️ Suhu: <span id="temp">-</span> °C</div>
+    <div>🚆 Kecepatan: <span id="speed">0</span> km/jam</div>
+    <div>📍 Stasiun berikutnya: <span id="nextStation">-</span></div>
+    <div>📏 Jarak: <span id="distanceToNext">-</span> km</div>
   </div>
-  <div class="info-panel">
-    <div id="nextStation">Stasiun berikutnya: -</div>
-    <div id="distanceToNext">Jarak: - km</div>
-  </div>
+
+  <button class="locate-btn" onclick="zoomToUser()">📍 Lokasi Saya</button>
   <div id="map"></div>
   <div class="status" id="status">Menunggu GPS...</div>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
-    const speedElement = document.getElementById("speed");
-    const statusElement = document.getElementById("status");
-    const nextStationElement = document.getElementById("nextStation");
-    const distanceElement = document.getElementById("distanceToNext");
-    const tempElement = document.getElementById("temp");
+    const speedEl = document.getElementById("speed");
+    const statusEl = document.getElementById("status");
+    const nextStationEl = document.getElementById("nextStation");
+    const distanceEl = document.getElementById("distanceToNext");
+    const tempEl = document.getElementById("temp");
+    const statusKeretaEl = document.getElementById("statusKereta");
 
-    // Data stasiun Jogja - Palur (nama, lat, lon)
     const stations = [
       { name: "Yogyakarta", lat: -7.7894, lon: 110.3630 },
       { name: "Lempuyangan", lat: -7.7829, lon: 110.3794 },
@@ -90,28 +123,28 @@
     ];
 
     let map, marker;
+    let currentLat = null;
+    let currentLon = null;
 
-    // Ikon kereta
-    const trainIcon = L.icon({
-      iconUrl: "https://cdn-icons-png.flaticon.com/512/634/634267.png",
-      iconSize: [32, 32],
-      iconAnchor: [16, 16],
+    const trainLabelIcon = L.divIcon({
+      html: '<div class="krl-label-box">🚆 KRL Commuter<br>Yogyakarta–Palur</div>',
+      className: '',
+      iconSize: [160, 50],
+      iconAnchor: [80, 25]
     });
 
-    // Hitung jarak Haversine
     function getDistance(lat1, lon1, lat2, lon2) {
-      const R = 6371; // km
+      const R = 6371;
       const dLat = (lat2 - lat1) * Math.PI / 180;
       const dLon = (lon2 - lon1) * Math.PI / 180;
-      const a = 
-        Math.sin(dLat/2) * Math.sin(dLat/2) +
+      const a =
+        Math.sin(dLat / 2) ** 2 +
         Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-        Math.sin(dLon/2) * Math.sin(dLon/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        Math.sin(dLon / 2) ** 2;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return R * c;
     }
 
-    // Cari stasiun terdekat berikutnya
     function findNextStation(lat, lon) {
       let closest = null;
       let minDist = Infinity;
@@ -125,17 +158,15 @@
       return { station: closest, distance: minDist.toFixed(2) };
     }
 
-    // Tambahkan marker stasiun
     function addStationMarkers() {
       for (const s of stations) {
         L.circleMarker([s.lat, s.lon], {
           radius: 5,
-          color: 'yellow'
+          color: 'blue'
         }).addTo(map).bindPopup(s.name);
       }
     }
 
-    // Inisialisasi peta
     function initMap(lat, lon) {
       map = L.map('map').setView([lat, lon], 13);
 
@@ -143,54 +174,48 @@
         attribution: '&copy; OpenStreetMap contributors'
       }).addTo(map);
 
-      marker = L.marker([lat, lon], { icon: trainIcon }).addTo(map);
+      marker = L.marker([lat, lon], { icon: trainLabelIcon }).addTo(map);
       addStationMarkers();
     }
 
-    // Dapatkan suhu (jika tersedia)
-    function getTemperature() {
-      if ("AmbientTemperatureSensor" in window) {
-        const sensor = new AmbientTemperatureSensor();
-        sensor.addEventListener('reading', () => {
-          tempElement.textContent = sensor.temperature.toFixed(1);
-        });
-        sensor.start();
-      } else {
-        tempElement.textContent = "N/A";
+    function zoomToUser() {
+      if (map && currentLat && currentLon) {
+        map.setView([currentLat, currentLon], 15);
       }
     }
 
-    // Update GPS
     if ("geolocation" in navigator) {
       navigator.geolocation.watchPosition(
         (pos) => {
           const lat = pos.coords.latitude;
           const lon = pos.coords.longitude;
+          currentLat = lat;
+          currentLon = lon;
+
           const speedMps = pos.coords.speed;
 
           if (!map) initMap(lat, lon);
-
           if (marker) {
             marker.setLatLng([lat, lon]);
             map.panTo([lat, lon]);
           }
 
-          // Update kecepatan
           if (speedMps !== null) {
             const kmph = (speedMps * 3.6).toFixed(1);
-            speedElement.textContent = kmph;
-            statusElement.textContent = "GPS aktif";
+            speedEl.textContent = kmph;
+            statusEl.textContent = "GPS aktif";
+
+            statusKeretaEl.textContent = speedMps > 1 ? "Status: Berjalan" : "Status: Berhenti";
           }
 
-          // Update stasiun berikutnya
           const { station, distance } = findNextStation(lat, lon);
           if (station) {
-            nextStationElement.textContent = "Stasiun berikutnya: " + station.name;
-            distanceElement.textContent = "Jarak: " + distance + " km";
+            nextStationEl.textContent = station.name;
+            distanceEl.textContent = distance;
           }
         },
         (err) => {
-          statusElement.textContent = "Lokasi tidak tersedia.";
+          statusEl.textContent = "Lokasi tidak tersedia.";
           console.error(err);
         },
         {
@@ -200,7 +225,11 @@
         }
       );
     } else {
-      statusElement.textContent = "Geolocation tidak didukung.";
+      statusEl.textContent = "Geolocation tidak didukung.";
+    }
+
+    function getTemperature() {
+      tempEl.textContent = "N/A"; // Placeholder
     }
 
     getTemperature();
