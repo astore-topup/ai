@@ -2,28 +2,79 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Customer Service Petshop AI</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Speedometer GPS</title>
   <style>
-    body { font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; }
-    input, button { padding: 10px; font-size: 16px; margin-top: 10px; width: 100%; }
-    .chat-box { margin-top: 20px; background: #f4f4f4; padding: 15px; border-radius: 8px; }
-    .jawaban { margin-top: 10px; font-weight: bold; color: #1a73e8; }
-    .wa { margin-top: 10px; display: inline-block; background: #25d366; color: white; padding: 10px; border-radius: 6px; text-decoration: none; }
+    body {
+      background: #111;
+      color: #0f0;
+      font-family: 'Courier New', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 2em;
+      margin-bottom: 20px;
+    }
+
+    .speed {
+      font-size: 5em;
+      font-weight: bold;
+    }
+
+    .unit {
+      font-size: 1.5em;
+      margin-top: -20px;
+    }
+
+    .status {
+      margin-top: 20px;
+      font-size: 1em;
+      color: #aaa;
+    }
   </style>
 </head>
 <body>
-  <h1>Customer Service AI - Petshop</h1>
-  <p>Tanyakan apa saja seputar produk hewan peliharaan kamu!</p>
-  <input type="text" id="pertanyaan" placeholder="Contoh: dryfood terbaik untuk kucing 1 tahun apa?" />
-  <button onclick="jawab()">Tanyakan</button>
+  <h1>Kecepatan Anda</h1>
+  <div class="speed" id="speed">0</div>
+  <div class="unit">km/jam</div>
+  <div class="status" id="status">Menunggu GPS...</div>
 
-  <div class="chat-box">
-    <div id="jawaban" class="jawaban">Jawaban akan muncul di sini...</div>
-    <a id="waLink" class="wa" href="#" target="_blank" style="display:none">Chat via WhatsApp</a>
-  </div>
+  <script>
+    const speedElement = document.getElementById("speed");
+    const statusElement = document.getElementById("status");
 
-  <script src="script.js"></script>
+    if ("geolocation" in navigator) {
+      navigator.geolocation.watchPosition(
+        (position) => {
+          const speedMps = position.coords.speed; // meter per detik
+
+          if (speedMps !== null) {
+            const speedKmph = (speedMps * 3.6).toFixed(1);
+            speedElement.textContent = speedKmph;
+            statusElement.textContent = "GPS aktif";
+          } else {
+            statusElement.textContent = "Sedang menghitung kecepatan...";
+          }
+        },
+        (error) => {
+          statusElement.textContent = "Akses lokasi ditolak atau tidak tersedia.";
+          console.error(error);
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 1000,
+          timeout: 5000,
+        }
+      );
+    } else {
+      statusElement.textContent = "Geolocation tidak didukung di perangkat ini.";
+    }
+  </script>
 </body>
 </html>
