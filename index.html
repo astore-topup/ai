@@ -4,175 +4,134 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>KRL Yogyakarta – Palur Tracker</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
     body { margin: 0; font-family: sans-serif; }
-    #map { height: 100vh; }
-    .info-box {
-      position: absolute;
-      top: 0;
-      width: 100%;
-      background: #b71c1c;
-      color: white;
-      padding: 10px;
-      font-weight: bold;
-      text-align: center;
+    .header {
+      background: #c62828; color: white;
+      padding: 10px; font-weight: bold;
+      text-align: center; font-size: 1.2em;
     }
-    .data-bar {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      background: white;
-      color: black;
-      padding: 8px;
-      font-size: 15px;
-      flex-wrap: wrap;
+    .info-bar {
+      display: flex; flex-wrap: wrap;
+      justify-content: center; gap: 10px;
+      padding: 10px; font-size: 0.9em;
+      background: #f9f9f9;
     }
     .lokasi-btn {
-      position: absolute;
-      bottom: 10px;
-      left: 10px;
-      background: white;
-      padding: 6px 12px;
-      border-radius: 8px;
-      border: 2px solid red;
+      background: white; color: red;
+      padding: 6px 12px; border-radius: 8px;
+      border: 2px solid red; cursor: pointer;
       font-weight: bold;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      position: absolute; bottom: 20px; left: 20px; z-index: 999;
     }
+    #map { height: 90vh; width: 100%; }
     .train-label {
-      background: white;
-      padding: 6px 12px;
-      border: 2px solid red;
-      border-radius: 8px;
-      font-weight: bold;
+      background: white; padding: 6px 12px;
+      border-radius: 10px; border: 2px solid red;
+      font-weight: bold; font-size: 0.9em;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.2);
     }
   </style>
 </head>
 <body>
-  <div class="info-box">🚆 KRL Yogyakarta – Palur &nbsp;&nbsp; <span id="status">Status: -</span></div>
-  <div class="data-bar">
-    <span>🌡️ Suhu: <span id="suhu">N/A</span> °C</span>
-    <span>🚉 Kecepatan: <span id="speed">0</span> km/jam</span>
-    <span>📍 Stasiun berikutnya: <span id="nextStation">-</span></span>
-    <span>✏️ Jarak: <span id="jarak">-</span> km</span>
+  <div class="header">
+    🚆 KRL Yogyakarta – Palur  <span id="status">Status: —</span>
+  </div>
+  <div class="info-bar">
+    🌡️ Suhu: <span id="suhu">N/A</span> °C
+    🚉 Kecepatan: <span id="kecepatan">0</span> km/jam
+    📍 Stasiun berikutnya: <span id="nextStasiun">-</span>
+    ✏️ Jarak: <span id="jarak">-</span> km
   </div>
   <div id="map"></div>
   <button class="lokasi-btn" onclick="zoomLokasi()">📍 Lokasi Saya</button>
 
-<script>
-const stations = [
-  { "name": "Yogyakarta", "lat": -7.7896, "lon": 110.3671 },
-  { "name": "Lempuyangan", "lat": -7.7828, "lon": 110.3794 },
-  { "name": "Maguwo", "lat": -7.7833, "lon": 110.4083 },
-  { "name": "Brambanan", "lat": -7.7551, "lon": 110.4549 },
-  { "name": "Srowot", "lat": -7.7393, "lon": 110.4819 },
-  { "name": "Klaten", "lat": -7.7058, "lon": 110.6063 },
-  { "name": "Ceper", "lat": -7.7044, "lon": 110.6785 },
-  { "name": "Delanggu", "lat": -7.6406, "lon": 110.6953 },
-  { "name": "Gawok", "lat": -7.59736, "lon": 110.73810 },
-  { "name": "Purwosari", "lat": -7.5656, "lon": 110.8017 },
-  { "name": "Solo Balapan", "lat": -7.5562, "lon": 110.8251 },
-  { "name": "Solo Jebres", "lat": -7.5525, "lon": 110.8494 },
-  { "name": "Palur", "lat": -7.5412, "lon": 110.8784 }
-];
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    const map = L.map("map").setView([-7.566, 110.818], 13);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
 
-function distance(lat1, lon1, lat2, lon2) {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
+    const stasiun = [
+      { nama: "Yogyakarta", lat: -7.789, lon: 110.364 },
+      { nama: "Lempuyangan", lat: -7.782, lon: 110.379 },
+      { nama: "Maguwo", lat: -7.782, lon: 110.422 },
+      { nama: "Brambanan", lat: -7.755, lon: 110.489 },
+      { nama: "Srowot", lat: -7.735, lon: 110.524 },
+      { nama: "Klaten", lat: -7.704, lon: 110.607 },
+      { nama: "Ceper", lat: -7.689, lon: 110.681 },
+      { nama: "Delanggu", lat: -7.642, lon: 110.717 },
+      { nama: "Gawok", lat: -7.595, lon: 110.764 },
+      { nama: "Purwosari", lat: -7.562, lon: 110.801 },
+      { nama: "Solo Balapan", lat: -7.556, lon: 110.825 },
+      { nama: "Solo Jebres", lat: -7.552, lon: 110.852 },
+      { nama: "Palur", lat: -7.541, lon: 110.881 },
+    ];
 
-let directionForward = true;
-let lastLatLng = null;
-let currentLatLng = null;
+    // Tambah garis lintasan merah
+    const jalur = stasiun.map(s => [s.lat, s.lon]);
+    L.polyline(jalur, { color: "red", weight: 4 }).addTo(map);
 
-function detectDirection(currentLatLngNew) {
-  if (!lastLatLng) {
-    lastLatLng = currentLatLngNew;
-    return;
-  }
-  const start = stations[0];
-  const end = stations[stations.length - 1];
-  const dToStartNow = distance(currentLatLngNew.lat, currentLatLngNew.lng, start.lat, start.lon);
-  const dToEndNow = distance(currentLatLngNew.lat, currentLatLngNew.lng, end.lat, end.lon);
-  const dToStartLast = distance(lastLatLng.lat, lastLatLng.lng, start.lat, start.lon);
-  const dToEndLast = distance(lastLatLng.lat, lastLatLng.lng, end.lat, end.lon);
+    let marker = null;
+    let label = null;
+    let currentLatLng = null;
 
-  if ((dToEndNow < dToEndLast) && (dToStartNow > dToStartLast)) {
-    directionForward = true;
-  } else if ((dToStartNow < dToStartLast) && (dToEndNow > dToEndLast)) {
-    directionForward = false;
-  }
-  lastLatLng = currentLatLngNew;
-}
-
-let map = L.map('map').setView([-7.65, 110.75], 11);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; OpenStreetMap contributors'
-}).addTo(map);
-
-let marker = L.marker([-7.65, 110.75]).addTo(map);
-let label = L.popup({ closeButton: false })
-  .setLatLng([-7.65, 110.75])
-  .setContent('<div class="train-label">🚆 KRL Commuter<br>Yogyakarta–Palur</div>')
-  .openOn(map);
-
-function updatePosition(pos) {
-  const lat = pos.coords.latitude;
-  const lon = pos.coords.longitude;
-  const speed = (pos.coords.speed || 0) * 3.6;
-  document.getElementById("speed").textContent = speed.toFixed(1);
-  marker.setLatLng([lat, lon]);
-  label.setLatLng([lat, lon]);
-  currentLatLng = [lat, lon];
-
-  detectDirection({ lat, lng: lon });
-
-  const stationList = directionForward ? stations : [...stations].reverse();
-  let minDist = Infinity;
-  let nearest = null;
-
-  for (let i = 0; i < stationList.length; i++) {
-    const s = stationList[i];
-    const d = distance(lat, lon, s.lat, s.lon);
-    if (d < minDist) {
-      minDist = d;
-      nearest = s;
+    function hitungJarak(lat1, lon1, lat2, lon2) {
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
     }
-    if (d < 0.3) {
-      document.getElementById("status").textContent = "Status: Berhenti di stasiun " + s.name;
-      document.getElementById("nextStation").textContent = s.name;
-      document.getElementById("jarak").textContent = "0";
-      return;
+
+    function updateLokasi(pos) {
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      const speed = pos.coords.speed ? (pos.coords.speed * 3.6).toFixed(1) : 0;
+      document.getElementById("kecepatan").textContent = speed;
+
+      currentLatLng = [lat, lon];
+      if (!marker) {
+        marker = L.marker([lat, lon]).addTo(map);
+        label = L.marker([lat, lon], {
+          icon: L.divIcon({
+            className: 'train-label',
+            html: '🚆 KRL Commuter<br>Yogyakarta–Palur'
+          })
+        }).addTo(map);
+      } else {
+        marker.setLatLng([lat, lon]);
+        label.setLatLng([lat, lon]);
+      }
+
+      const terdekat = stasiun.reduce((a, b) => {
+        return hitungJarak(lat, lon, a.lat, a.lon) < hitungJarak(lat, lon, b.lat, b.lon) ? a : b;
+      });
+      const jarak = hitungJarak(lat, lon, terdekat.lat, terdekat.lon);
+      if (jarak < 0.15 && speed < 5) {
+        document.getElementById("status").textContent = `Status: Berhenti di stasiun ${terdekat.nama}`;
+        document.getElementById("nextStasiun").textContent = terdekat.nama;
+        document.getElementById("jarak").textContent = "0";
+      } else {
+        const sisa = stasiun.find(s => hitungJarak(lat, lon, s.lat, s.lon) > 0.15);
+        document.getElementById("status").textContent = "Status: Berjalan";
+        document.getElementById("nextStasiun").textContent = sisa ? sisa.nama : "-";
+        document.getElementById("jarak").textContent = sisa ? hitungJarak(lat, lon, sisa.lat, sisa.lon).toFixed(2) : "-";
+      }
     }
-  }
 
-  const idx = stationList.indexOf(nearest);
-  const nextStation = stationList[idx + 1];
-  document.getElementById("status").textContent = "Status: Berjalan";
-  document.getElementById("nextStation").textContent = nextStation ? nextStation.name : "-";
-  if (nextStation) {
-    const jarak = distance(lat, lon, nextStation.lat, nextStation.lon);
-    document.getElementById("jarak").textContent = jarak.toFixed(2);
-  } else {
-    document.getElementById("jarak").textContent = "-";
-  }
-}
+    function zoomLokasi() {
+      if (currentLatLng) {
+        map.flyTo(currentLatLng, 16);
+      }
+    }
 
-function zoomLokasi() {
-  if (currentLatLng) {
-    map.flyTo(currentLatLng, 16);
-  }
-}
-
-if (navigator.geolocation) {
-  navigator.geolocation.watchPosition(updatePosition);
-}
-</script>
+    navigator.geolocation.watchPosition(updateLokasi, console.error, {
+      enableHighAccuracy: true,
+      maximumAge: 1000
+    });
+  </script>
 </body>
 </html>
