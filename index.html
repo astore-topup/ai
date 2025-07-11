@@ -109,19 +109,7 @@
     const tempEl = document.getElementById("temp");
     const statusKeretaEl = document.getElementById("statusKereta");
 
-    const stations = [
-      { name: "Yogyakarta", lat: -7.7894, lon: 110.3630 },
-      { name: "Lempuyangan", lat: -7.7829, lon: 110.3794 },
-      { name: "Maguwo", lat: -7.7833, lon: 110.4253 },
-      { name: "Brambanan", lat: -7.7545, lon: 110.4912 },
-      { name: "Srowot", lat: -7.7265, lon: 110.5401 },
-      { name: "Klaten", lat: -7.7058, lon: 110.6060 },
-      { name: "Delanggu", lat: -7.6586, lon: 110.6803 },
-      { name: "Gawok", lat: -7.6063, lon: 110.7637 },
-      { name: "Purwosari", lat: -7.5671, lon: 110.7924 },
-      { name: "Solo Balapan", lat: -7.5611, lon: 110.8226 },
-      { name: "Palur", lat: -7.5524, lon: 110.8843 }
-    ];
+    const stations = [{"name": "Yogyakarta", "lat": -7.7894, "lon": 110.363}, {"name": "Lempuyangan", "lat": -7.7829, "lon": 110.3794}, {"name": "Maguwo", "lat": -7.7833, "lon": 110.4253}, {"name": "Brambanan", "lat": -7.7545, "lon": 110.4912}, {"name": "Srowot", "lat": -7.7265, "lon": 110.5401}, {"name": "Klaten", "lat": -7.7058, "lon": 110.606}, {"name": "Ceper", "lat": -7.6783, "lon": 110.6453}, {"name": "Delanggu", "lat": -7.6586, "lon": 110.6803}, {"name": "Gawok", "lat": -7.6063, "lon": 110.7637}, {"name": "Purwosari", "lat": -7.5671, "lon": 110.7924}, {"name": "Solo Balapan", "lat": -7.5611, "lon": 110.8226}, {"name": "Solo Jebres", "lat": -7.5586, "lon": 110.8496}, {"name": "Palur", "lat": -7.5524, "lon": 110.8843}];
 
     let map, marker;
     let currentLat = null;
@@ -233,7 +221,25 @@
             const kmph = (speedMps * 3.6).toFixed(1);
             speedEl.textContent = kmph;
             statusEl.textContent = "GPS aktif";
-            statusKeretaEl.textContent = speedMps > 1 ? "Status: Berjalan" : "Status: Berhenti";
+            
+    if (speedMps > 1) {
+      statusKeretaEl.textContent = "Status: Berjalan";
+    } else {
+      let stopStation = null;
+      for (const s of stations) {
+        const d = getDistance(lat, lon, s.lat, s.lon);
+        if (d < 0.3) {
+          stopStation = s.name;
+          break;
+        }
+      }
+      if (stopStation) {
+        statusKeretaEl.textContent = "Status: Berhenti di " + stopStation;
+      } else {
+        statusKeretaEl.textContent = "Status: Berhenti";
+      }
+    }
+    
           }
 
           if (prevLat !== null && prevLon !== null) {
